@@ -138,6 +138,12 @@ class ClientWorker(threading.Thread):
 
     def is_connected(self): 
         return self.socket_connected
+
+    def handle_command(self, command):
+	if command=="rewind":
+		print "rewind command"
+	if command=="time":
+		print "time command"
     
     def command_listener(self):
         print 'Init command listener as threaded function'
@@ -321,7 +327,8 @@ class SpeedwayReader(threading.Thread):
                 try:
                     data = self.clientsock.recv(BUFF)
                     time_now = datetime.today()
-                    self.server.notify_reading(self.id+","+data)
+		    print("notify reading")
+                    self.server.notify_reading(str(self.id) + ","+ data)
                     if not data: 
                         self.clientsock.close()
                         self.socket_connected = 0
