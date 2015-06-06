@@ -47,11 +47,11 @@ class TagServer():
         self.client_listener.start()
         # start reader listeneres
         cursor = self.cnx.cursor()
-        query = ("SELECT address, port, status FROM readers")
+        query = ("SELECT id, address, port, status FROM readers")
         cursor.execute(query)
-        for (address, port, status) in cursor:
-            print("{}, {} reader status {}".format(address,  port,  status))
-            reader0 = SpeedwayReader(port, address,  self)
+        for (id, address, port, status) in cursor:
+            print("{} - {}, {} reader status {}".format(id, address,  port,  status))
+            reader0 = SpeedwayReader(id, address, port, self)
 	    reader0.daemon = True
             try:
                 reader0.connect_to_reader()
@@ -165,25 +165,16 @@ class ClientWorker(threading.Thread):
                 print 'Client worker ' + str(self.__hash__) + " running"
 
 class SpeedwayReader(threading.Thread):
-    """
-    Thread checking URLs.
-    """
-    
-    
+
     def __del__(self):
         self.cnx.close()
 
-    def __init__(self, port, addr,  server):
-        """
-        Constructor.
-
-        @param urls list of urls to check
-        @param output file to write urls output
-        """
+    def __init__(self, id, addr, port, server):
         threading.Thread.__init__(self)
         
         self.connected = 1
         self.socket_connected = 0
+	self.id = id
         self.watchdog_event = threading.Event()
         self.cnx = mysql.connector.connect(host='localhost',database='speedway',user='speedway',password='speedway')
         self.addr = addr
@@ -218,7 +209,7 @@ class SpeedwayReader(threading.Thread):
                     #self.socket.send(data)
                     try:
                         #print 'saving data'
-                        data_reading = (reading.antenna,  0,  reading.epc, reading.tid, reading.user_data, reading.time_millis, reading.read_time,  reading.rssi)
+                        data_reading = (reading.antenna,  self.id,  reading.epc, reading.tid, reading.user_data, reading.time_millis, reading.read_time,  reading.rssi)
                         cursor.execute(add_reading, data_reading)
                         executed_command = True
                         command_counter += 1
@@ -323,9 +314,6 @@ class SpeedwayReader(threading.Thread):
 
     
     def run(self):
-        """
-        Thread run method. Check URLs one by one.
-        """
         keepalive_counter = 0
         retry_counter = 1
         while self.connected:
@@ -333,7 +321,7 @@ class SpeedwayReader(threading.Thread):
                 try:
                     data = self.clientsock.recv(BUFF)
                     time_now = datetime.today()
-                    self.server.notify_reading(data)
+                    self.server.notify_reading(self.id+","+data)
                     if not data: 
                         self.clientsock.close()
                         self.socket_connected = 0
