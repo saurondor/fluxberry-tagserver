@@ -1,4 +1,5 @@
 from socket import *
+import RPi.GPIO as GPIO
 import threading
 import time
 import socket
@@ -12,7 +13,27 @@ BUFF = 1024
 
 class TagServer():
     
+        # blinking function
+    def blink(self, pin):
+        GPIO.output(pin,GPIO.LOW)
+        time.sleep(0.02)
+        GPIO.output(pin,GPIO.HIGH)
+        time.sleep(0.01)
+        return
+
+
     def __init__(self):
+	pins = [5, 6, 13, 19, 26]
+	pin = 5
+	# to use Raspberry Pi bcm pin numbers
+	GPIO.setmode(GPIO.BCM)
+	# set up GPIO output channel
+	for j in pins:
+		pin = j
+		GPIO.setup(pin, GPIO.OUT)
+		for i in range(0,50):
+        		self.blink(pin)
+
         self.cnx = mysql.connector.connect(host='localhost',database='speedway',user='speedway',password='speedway')
         # load settings
         print 'Starting client listener'
