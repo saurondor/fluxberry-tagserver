@@ -130,7 +130,7 @@ class ClientWorker(threading.Thread):
         self.readings = Queue()
         self.socket_connected = True
         t1 = threading.Thread(target=self.command_listener)
-	t1.daemon = True
+	    t1.daemon = True
         t1.start()
     
     def notify_reading(self,  reading):
@@ -140,16 +140,18 @@ class ClientWorker(threading.Thread):
         return self.socket_connected
 
     def handle_command(self, command):
-	if command=="rewind":
-		print "rewind command"
-	if command=="time":
-		print "time command"
+        print "command :" + command + ":"
+        if command == "rewind":
+	        print "rewind command"
+        if command == "time":
+	        print "time command"
     
     def command_listener(self):
         print 'Init command listener as threaded function'
         while self.socket_connected:
             command = self.socket.recv(BUFF)
-            print '***got command'
+            print "***got command"
+            self.handle_command(command.rstrip('\r\n'))
             if not command:
                 print 'Conection closed'
                 self.socket.close()
