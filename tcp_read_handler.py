@@ -1,4 +1,5 @@
 from socket import *
+from time import gmtime, strftime
 import RPi.GPIO as GPIO
 import threading
 import time
@@ -8,6 +9,7 @@ import binascii
 import datetime
 from datetime import datetime
 from Queue import Queue
+import os
 
 BUFF = 1024
 READER_0_LED = 5
@@ -15,6 +17,10 @@ READER_1_LED = 6
 WATCHDOG_LED = 26
 BUZZER_LED = 13
 TIEMPOMETA_LED = 19
+DATABASE = 'speedway'
+DB_HOSTNAME = 'localhost'
+DB_USER = 'speedway'
+DB_PASSWORD = 'speedway'
 
 class TagServer():
     
@@ -28,38 +34,38 @@ class TagServer():
 
 
     def __init__(self):
-	pins = [5, 6, 13, 19, 26]
-	pin = 5
-	# to use Raspberry Pi bcm pin numbers
-	GPIO.setmode(GPIO.BCM)
-	# set up GPIO output channel
-	for j in pins:
-		pin = j
-		GPIO.setup(pin, GPIO.OUT)
-		for i in range(0,20):
-        		self.blink(pin)
+	    pins = [5, 6, 13, 19, 26]
+	    pin = 5
+	    # to use Raspberry Pi bcm pin numbers
+	    GPIO.setmode(GPIO.BCM)
+	    # set up GPIO output channel
+	    for j in pins:
+		    pin = j
+		    GPIO.setup(pin, GPIO.OUT)
+		    for i in range(0,20):
+            		self.blink(pin)
 
-        self.cnx = mysql.connector.connect(host='localhost',database='speedway',user='speedway',password='speedway')
-        # load settings
-        print 'Starting client listener'
-        self.client_listener = ClientListener(10201, '192.168.1.173')
-	self.client_listener.daemon = True
-        self.client_listener.start()
-        # start reader listeneres
-        cursor = self.cnx.cursor()
-        query = ("SELECT id, address, port, status FROM readers")
-        cursor.execute(query)
-        for (id, address, port, status) in cursor:
-            print("{} - {}, {} reader status {}".format(id, address,  port,  status))
-            reader0 = SpeedwayReader(id, address, port, self)
-	    reader0.daemon = True
-            try:
-                reader0.connect_to_reader()
-            except Exception as error:
-                print(error)
-            reader0.start()
-        cursor.close()
-        print 'Initialized server process!'
+            self.cnx = mysql.connector.connect(host=DB_HOSTNAME,database=DATABASE,user=DB_USER,password=DB_PASSWORD)
+            # load settings
+            print 'Starting client listener'
+            self.client_listener = ClientListener(10201, '192.168.1.173')
+            self.client_listener.daemon = True
+            self.client_listener.start()
+            # start reader listeneres
+            cursor = self.cnx.cursor()
+            query = ("SELECT id, address, port, status FROM readers")
+            cursor.execute(query)
+            for (id, address, port, status) in cursor:
+                print("{} - {}, {} reader status {}".format(id, address,  port,  status))
+                reader0 = SpeedwayReader(id, address, port, self)
+	        reader0.daemon = True
+                try:
+                    reader0.connect_to_reader()
+                except Exception as error:
+                    print(error)
+                reader0.start()
+            cursor.close()
+            print 'Initialized server process!'
         
     def notify_reading(self, reading):
         self.client_listener.notify_reading(reading)
@@ -83,7 +89,7 @@ class ClientListener(threading.Thread):
     def notify_reading(self,  reading):
         i = 0
         GPIO.output(WATCHDOG_LED,GPIO.HIGH)
-	time.sleep(0.02)
+        time.sleep(0.02)
         GPIO.output(WATCHDOG_LED,GPIO.LOW)
         for worker in self.workers:
             if (worker.is_connected()):
@@ -96,8 +102,8 @@ class ClientListener(threading.Thread):
                     self.workers.remove(worker)
                 except Exception as error:
                     print error
-	if len(self.workers) == 0:
-	    GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+        if len(self.workers) == 0:
+            GPIO.output(WATCHDOG_LED,GPIO.HIGH)
 
     
     def run(self):
@@ -123,6 +129,7 @@ class ClientListener(threading.Thread):
 class ClientWorker(threading.Thread):
     
     def __init__(self,  socket):
+        self.cnx = mysql.connector.connect(host=DB_HOSTNAME,database=DATABASE,user=DB_USER,password=DB_PASSWORD)
         threading.Thread.__init__(self)
         print 'Initializing new client worker'
         # get current reading ID
@@ -130,7 +137,7 @@ class ClientWorker(threading.Thread):
         self.readings = Queue()
         self.socket_connected = True
         t1 = threading.Thread(target=self.command_listener)
-	    t1.daemon = True
+        t1.daemon = True
         t1.start()
     
     def notify_reading(self,  reading):
@@ -138,19 +145,44 @@ class ClientWorker(threading.Thread):
 
     def is_connected(self): 
         return self.socket_connected
+        
+    def rewind_readings(self):
+        cursor = self.cnx.cursor()
+        query = ("SELECT id, antenna, reader, epc, tid, user_data, rssi, time_millis FROM readings")
+        cursor.execute(query)
+        for (id, antenna, reader, epc, tid, user_data, rssi, time_millis) in cursor:
+            data_row = "{},{},{},{},{},{},{}\r\n".format(reader, antenna,  epc, time_millis, rssi, tid, user_data)
+            self.notify_reading(data_row)
+        cursor.close()
+        
+    def handle_time_command(self, commands):
+        if commands[1] == "set":
+            print "set time"
+            command_line = 'date %s' % commands[2]
+            print command_line
+            os.system(command_line)
+            data_row = strftime("%Y-%m-%d %H:%M:%S\r\n", gmtime())
+            self.notify_reading(data_row)
+        if commands[1] == "get":
+            print "get time"
+            data_row = strftime("%Y-%m-%d %H:%M:%S\r\n", gmtime())
+            self.notify_reading(data_row)
 
     def handle_command(self, command):
         print "command :" + command + ":"
-        if command == "rewind":
-	        print "rewind command"
-        if command == "time":
-	        print "time command"
+        commands = command.split()
+        if len(commands) > 0:
+            if commands[0] == "rewind":
+	            print "rewind command"
+	            self.rewind_readings()
+            if commands[0] == "time":
+	            print "time command"
+	            self.handle_time_command(commands)
     
     def command_listener(self):
         print 'Init command listener as threaded function'
         while self.socket_connected:
             command = self.socket.recv(BUFF)
-            print "***got command"
             self.handle_command(command.rstrip('\r\n'))
             if not command:
                 print 'Conection closed'
@@ -182,20 +214,20 @@ class SpeedwayReader(threading.Thread):
         
         self.connected = 1
         self.socket_connected = 0
-	self.id = id
+        self.id = id
         self.watchdog_event = threading.Event()
-        self.cnx = mysql.connector.connect(host='localhost',database='speedway',user='speedway',password='speedway')
+        self.cnx = mysql.connector.connect(host=DB_HOSTNAME,database=DATABASE,user=DB_USER,password=DB_PASSWORD)
         self.addr = addr
         self.port = port
         self.server = server
         print 'Starting watchdog'
         self.watchdog_event.clear()
         t1 = threading.Thread(target=self.watchdog,  args=(self.watchdog_event, ))
-	t1.daemon = True
+        t1.daemon = True
         t1.start()
         self.readings = Queue()
         t2 = threading.Thread(target=self.log_readings)
-	t2.daemon = True
+        t2.daemon = True
         t2.start()
 
     def log_message(self,  message):
