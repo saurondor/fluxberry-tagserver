@@ -10,6 +10,11 @@ from datetime import datetime
 from Queue import Queue
 
 BUFF = 1024
+READER_0_LED = 5
+READER_1_LED = 6
+WATCHDOG_LED = 26
+BUZZER_LED = 13
+TIEMPOMETA_LED = 19
 
 class TagServer():
     
@@ -31,7 +36,7 @@ class TagServer():
 	for j in pins:
 		pin = j
 		GPIO.setup(pin, GPIO.OUT)
-		for i in range(0,50):
+		for i in range(0,20):
         		self.blink(pin)
 
         self.cnx = mysql.connector.connect(host='localhost',database='speedway',user='speedway',password='speedway')
@@ -77,6 +82,9 @@ class ClientListener(threading.Thread):
         
     def notify_reading(self,  reading):
         i = 0
+        GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+	time.sleep(0.02)
+        GPIO.output(WATCHDOG_LED,GPIO.LOW)
         for worker in self.workers:
             if (worker.is_connected()):
                 #worker.notify_reading(str(i) + ' ' + reading )
@@ -88,6 +96,9 @@ class ClientListener(threading.Thread):
                     self.workers.remove(worker)
                 except Exception as error:
                     print error
+	if len(self.workers) == 0:
+	    GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+
     
     def run(self):
         print 'Running listener ' + self.hostname + ' ' + str(self.port)
@@ -104,6 +115,9 @@ class ClientListener(threading.Thread):
             self.workers.append(client_worker)
             client_worker.start()
             print '...connected from:', addr
+            GPIO.output(WATCHDOG_LED,GPIO.LOW)
+
+	    
 
 # Handles a connection with a particular client
 class ClientWorker(threading.Thread):
@@ -134,6 +148,7 @@ class ClientWorker(threading.Thread):
                 print 'Conection closed'
                 self.socket.close()
                 self.socket_connected = False
+	        GPIO.output(WATCHDOG_LED,GPIO.HIGH)
                 break
             else:
                 print command
@@ -230,6 +245,17 @@ class SpeedwayReader(threading.Thread):
                 self.socket_connected = 0
                 self.log_message("Watchdog closed connection. Triggering reconnect") #log on console
 
+    def blink_keepalive(self):
+        GPIO.output(READER_0_LED,GPIO.HIGH)
+        time.sleep(0.05)
+        GPIO.output(READER_0_LED,GPIO.LOW)
+	time.sleep(0.05)
+        GPIO.output(READER_0_LED,GPIO.HIGH)
+        time.sleep(0.05)
+        GPIO.output(READER_0_LED,GPIO.LOW)
+        time.sleep(0.05)
+
+
     def connect_to_reader(self):
         self.log_message('Connecting to server')
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -238,6 +264,7 @@ class SpeedwayReader(threading.Thread):
         self.clientsock = client_socket
         self.socket_connected = 1
         self.log_message('Connected to server!')
+        GPIO.output(READER_0_LED,GPIO.LOW)
         self.watchdog_event.set()
 
     def response(self,  data):
@@ -261,6 +288,9 @@ class SpeedwayReader(threading.Thread):
                     tid = None
                     user_data = None
                     log_data = False
+		    blink = threading.Thread(target=self.blink_keepalive)
+        	    blink.daemon = True
+		    blink.start()	
                 elif len(fields) == 5:
                     reading.antenna = fields[0]
                     reading.epc = fields[1]
@@ -308,18 +338,35 @@ class SpeedwayReader(threading.Thread):
                         self.clientsock.close()
                         self.socket_connected = 0
                         self.log_message(self.addr, "- closed connection") #log on console
+		        GPIO.output(READER_0_LED,GPIO.HIGH)
                         break
                     repr(self.response(data))
                 except Exception:
                     data_timeout = 1
+            GPIO.output(READER_0_LED,GPIO.HIGH)
             #self.event.clear()
             self.log_message('Waiting to reconnect. Retry:' + str(retry_counter))
             if retry_counter < 20:
                 time.sleep(0.1)     
             elif retry_counter < 100:
                 time.sleep(10)
+                GPIO.output(READER_0_LED,GPIO.LOW)
+		time.sleep(0.3)
+                GPIO.output(READER_0_LED,GPIO.HIGH)
+                time.sleep(0.3)
+                GPIO.output(READER_0_LED,GPIO.LOW)
+                time.sleep(0.3)
+                GPIO.output(READER_0_LED,GPIO.HIGH)
             else:
                 time.sleep(60)
+                GPIO.output(READER_0_LED,GPIO.LOW)
+                time.sleep(0.3)
+                GPIO.output(READER_0_LED,GPIO.HIGH)
+                time.sleep(0.3)
+                GPIO.output(READER_0_LED,GPIO.LOW)
+                time.sleep(0.3)
+                GPIO.output(READER_0_LED,GPIO.HIGH)
+
             try:
                 self.connect_to_reader()
                 retry_counter = 1
