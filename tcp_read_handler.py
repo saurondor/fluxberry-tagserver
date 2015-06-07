@@ -146,6 +146,12 @@ class ClientWorker(threading.Thread):
     def is_connected(self): 
         return self.socket_connected
         
+    def clear_readings(self):
+        cursor = self.cnx.cursor()
+        query = ("DELETE FROM readings")
+        cursor.execute(query)
+        self.cnx.commit()
+    
     def rewind_readings(self):
         cursor = self.cnx.cursor()
         query = ("SELECT id, antenna, reader, epc, tid, user_data, rssi, time_millis FROM readings")
@@ -154,6 +160,7 @@ class ClientWorker(threading.Thread):
             data_row = "{},{},{},{},{},{},{}\r\n".format(reader, antenna,  epc, time_millis, rssi, tid, user_data)
             self.notify_reading(data_row)
         cursor.close()
+        self.cnx.commit()
         
     def handle_time_command(self, commands):
         if commands[1] == "set":
@@ -172,6 +179,9 @@ class ClientWorker(threading.Thread):
         print "command :" + command + ":"
         commands = command.split()
         if len(commands) > 0:
+            if commands[0] == "clear":
+	            print "clear command"
+	            self.clear_readings()
             if commands[0] == "rewind":
 	            print "rewind command"
 	            self.rewind_readings()
