@@ -87,15 +87,21 @@ class ClientListener(threading.Thread):
         self.workers = []
         
     def notify_reading(self,  reading):
-        i = 0
         GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+        print "Reading "+reading
+        if len(reading) > 10:
+            GPIO.output(BUZZER_LED,GPIO.LOW)
+            time.sleep(0.02)
+            GPIO.output(BUZZER_LED,GPIO.HIGH)
+            time.sleep(0.02)
+            GPIO.output(BUZZER_LED,GPIO.LOW)
+            time.sleep(0.02)
+            GPIO.output(BUZZER_LED,GPIO.HIGH)
         time.sleep(0.02)
         GPIO.output(WATCHDOG_LED,GPIO.LOW)
         for worker in self.workers:
             if (worker.is_connected()):
-                #worker.notify_reading(str(i) + ' ' + reading )
                 worker.notify_reading(reading )
-                i += 1
         for worker in self.workers:
             if (not worker.is_connected()):
                 try:
@@ -198,7 +204,7 @@ class ClientWorker(threading.Thread):
                 print 'Conection closed'
                 self.socket.close()
                 self.socket_connected = False
-	        GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+                GPIO.output(WATCHDOG_LED,GPIO.HIGH)
                 break
             else:
                 print command
@@ -276,12 +282,15 @@ class SpeedwayReader(threading.Thread):
         counter = 0
         while 1:
             time.sleep(1)
+            GPIO.output(READER_0_LED,GPIO.HIGH)
+            time.sleep(0.05)
+            GPIO.output(READER_0_LED,GPIO.LOW)
             if event.isSet():
                 counter = 0
                 self.watchdog_event.clear()
             else:
                 counter += 1
-            if counter > 12:
+            if counter > 12000:
                 self.clientsock.close()
                 self.socket_connected = 0
                 self.log_message("Watchdog closed connection. Triggering reconnect") #log on console
@@ -290,7 +299,7 @@ class SpeedwayReader(threading.Thread):
         GPIO.output(READER_0_LED,GPIO.HIGH)
         time.sleep(0.05)
         GPIO.output(READER_0_LED,GPIO.LOW)
-	time.sleep(0.05)
+        time.sleep(0.05)
         GPIO.output(READER_0_LED,GPIO.HIGH)
         time.sleep(0.05)
         GPIO.output(READER_0_LED,GPIO.LOW)
@@ -371,15 +380,19 @@ class SpeedwayReader(threading.Thread):
                 try:
                     data = self.clientsock.recv(BUFF)
                     time_now = datetime.today()
-		    print("notify reading")
-                    self.server.notify_reading(str(self.id) + ","+ data)
+                    print("notify reading "+data)
                     if not data: 
                         self.clientsock.close()
                         self.socket_connected = 0
                         self.log_message(self.addr, "- closed connection") #log on console
-		        GPIO.output(READER_0_LED,GPIO.HIGH)
+                        GPIO.output(READER_0_LED,GPIO.HIGH)
                         break
-                    repr(self.response(data))
+                    data = data.splitlines()
+                    print("notify reading rows "+str(len(data)))
+                    for row in data:
+                        print("sending data row "+row)
+                        self.server.notify_reading(str(self.id) + ","+ row+"\r\n")
+                        repr(self.response(row))
                 except Exception:
                     data_timeout = 1
             GPIO.output(READER_0_LED,GPIO.HIGH)
@@ -390,7 +403,7 @@ class SpeedwayReader(threading.Thread):
             elif retry_counter < 100:
                 time.sleep(10)
                 GPIO.output(READER_0_LED,GPIO.LOW)
-		time.sleep(0.3)
+                time.sleep(0.3)
                 GPIO.output(READER_0_LED,GPIO.HIGH)
                 time.sleep(0.3)
                 GPIO.output(READER_0_LED,GPIO.LOW)
