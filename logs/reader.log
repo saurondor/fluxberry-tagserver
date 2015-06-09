@@ -1,0 +1,10 @@
+Exception in thread Thread-6:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 552, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 505, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/pi/speedway/tcp_read_handler.py", line 294, in watchdog
+    self.clientsock.close()
+AttributeError: 'SpeedwayReader' object has no attribute 'clientsock'
+

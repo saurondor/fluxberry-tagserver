@@ -290,7 +290,7 @@ class SpeedwayReader(threading.Thread):
                 self.watchdog_event.clear()
             else:
                 counter += 1
-            if counter > 12000:
+            if counter > 12:
                 self.clientsock.close()
                 self.socket_connected = 0
                 self.log_message("Watchdog closed connection. Triggering reconnect") #log on console
