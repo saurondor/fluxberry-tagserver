@@ -380,6 +380,18 @@ class SpeedwayReader(threading.Thread):
 		    blink = threading.Thread(target=self.blink_keepalive)
         	    blink.daemon = True
 		    blink.start()	
+                elif len(fields) == 4:
+                    reading.antenna = fields[0]
+                    reading.epc = fields[1]
+                    reading.time_millis = fields[2]
+                    reading.rssi = fields[3]
+                    reading.tid = None
+                    reading.user_data = None
+                    try:
+                        ms = float(reading.time_millis)//1000000.0
+                        reading.read_time = datetime.utcfromtimestamp(ms)
+                    except Exception as error:
+                        self.log_message(error)
                 elif len(fields) == 5:
                     reading.antenna = fields[0]
                     reading.epc = fields[1]
