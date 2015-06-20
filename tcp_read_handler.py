@@ -38,14 +38,21 @@ class TagServer():
 	    pin = 5
 	    # to use Raspberry Pi bcm pin numbers
 	    GPIO.setmode(GPIO.BCM)
+	    not_connected = True
 	    # set up GPIO output channel
 	    for j in pins:
 		    pin = j
 		    GPIO.setup(pin, GPIO.OUT)
 		    for i in range(0,20):
             		self.blink(pin)
-
-            self.cnx = mysql.connector.connect(host=DB_HOSTNAME,database=DATABASE,user=DB_USER,password=DB_PASSWORD)
+            while not_connected:
+                try:
+                    self.cnx = mysql.connector.connect(host=DB_HOSTNAME,database=DATABASE,user=DB_USER,password=DB_PASSWORD)
+                    not_connected = False
+                except Exception as error:
+                    print(error)
+                    time.sleep(5)
+                    
             # load settings
             print 'Starting client listener'
             self.client_listener = ClientListener(10201, '0.0.0.0')
