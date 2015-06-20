@@ -98,20 +98,28 @@ class ClientListener(threading.Thread):
         self.port = port
         self.hostname = hostname
         self.workers = []
+        self.buzzer_event = threading.Event()
+        self.buzzer_event.clear()
+        
+    def buzzer(self, buzzer_event):
+        GPIO.output(BUZZER_LED,GPIO.LOW)
+        #GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+        time.sleep(0.2)
+        GPIO.output(BUZZER_LED,GPIO.HIGH)
+        #GPIO.output(WATCHDOG_LED,GPIO.LOW)
+        buzzer_event.clear()
         
     def notify_reading(self,  reading):
-        GPIO.output(WATCHDOG_LED,GPIO.HIGH)
-        print "Reading "+reading
-        if len(reading) > 10:
-            GPIO.output(BUZZER_LED,GPIO.LOW)
-            time.sleep(0.02)
-            GPIO.output(BUZZER_LED,GPIO.HIGH)
-            time.sleep(0.02)
-            GPIO.output(BUZZER_LED,GPIO.LOW)
-            time.sleep(0.02)
-            GPIO.output(BUZZER_LED,GPIO.HIGH)
-        time.sleep(0.02)
-        GPIO.output(WATCHDOG_LED,GPIO.LOW)
+        print "**** SET BUZZER"
+        if len(reading) > 5:
+            if not self.buzzer_event.isSet():
+                self.buzzer_event.set()
+                print 'Initializing buzzer thread'
+                t1 = threading.Thread(target=self.buzzer,  args=(self.buzzer_event, ))
+                t1.daemon = True
+                t1.start()
+                print 'Successfully initialized buzzer thread'
+            
         for worker in self.workers:
             if (worker.is_connected()):
                 worker.notify_reading(reading )
@@ -123,7 +131,6 @@ class ClientListener(threading.Thread):
                     print error
         if len(self.workers) == 0:
             GPIO.output(WATCHDOG_LED,GPIO.HIGH)
-
     
     def run(self):
         print 'Running listener ' + self.hostname + ' ' + str(self.port)
@@ -373,6 +380,18 @@ class SpeedwayReader(threading.Thread):
 		    blink = threading.Thread(target=self.blink_keepalive)
         	    blink.daemon = True
 		    blink.start()	
+                elif len(fields) == 4:
+                    reading.antenna = fields[0]
+                    reading.epc = fields[1]
+                    reading.time_millis = fields[2]
+                    reading.rssi = fields[3]
+                    reading.tid = None
+                    reading.user_data = None
+                    try:
+                        ms = float(reading.time_millis)//1000000.0
+                        reading.read_time = datetime.utcfromtimestamp(ms)
+                    except Exception as error:
+                        self.log_message(error)
                 elif len(fields) == 5:
                     reading.antenna = fields[0]
                     reading.epc = fields[1]
