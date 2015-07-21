@@ -377,9 +377,9 @@ class SpeedwayReader(threading.Thread):
                     tid = None
                     user_data = None
                     log_data = False
-		    blink = threading.Thread(target=self.blink_keepalive)
-        	    blink.daemon = True
-		    blink.start()	
+		            blink = threading.Thread(target=self.blink_keepalive)
+        	        blink.daemon = True
+        		    blink.start()	
                 elif len(fields) == 4:
                     reading.antenna = fields[0]
                     reading.epc = fields[1]
@@ -436,7 +436,10 @@ class SpeedwayReader(threading.Thread):
                         self.clientsock.close()
                         self.socket_connected = 0
                         self.log_message(self.addr, "- closed connection") #log on console
-                        GPIO.output(READER_0_LED,GPIO.HIGH)
+                        if self.id == 1:
+                            GPIO.output(READER_0_LED,GPIO.HIGH)
+                        if self.id == 2:
+                            GPIO.output(READER_1_LED,GPIO.HIGH)
                         break
                     data = data.splitlines()
                     print("notify reading rows "+str(len(data)))
