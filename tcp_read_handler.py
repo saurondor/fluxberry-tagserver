@@ -174,9 +174,38 @@ class ClientWorker(threading.Thread):
         return self.socket_connected
         
     def clear_readings(self):
+        print "Clearing all readings"
         cursor = self.cnx.cursor()
         query = ("DELETE FROM readings")
         cursor.execute(query)
+        self.cnx.commit()
+    
+    def clear_readings_before_time(self, to_time):
+        print "Clearing before time"
+        cursor = self.cnx.cursor()
+        query = ("DELETE FROM readings WHERE time_millis <= %s ")
+        cursor.execute(query, (to_time,))
+        self.cnx.commit()
+    
+    def clear_readings_after_time(self, from_time):
+        print "Clearing after time"
+        cursor = self.cnx.cursor()
+        query = ("DELETE FROM readings WHERE time_millis >= %s ")
+        cursor.execute(query, (from_time,))
+        self.cnx.commit()
+    
+    def clear_readings_in_time(self, from_time, to_time):
+        print "Clearing in times"
+        cursor = self.cnx.cursor()
+        query = ("DELETE FROM readings WHERE time_millis >= %s AND time_millis <= %s ")
+        cursor.execute(query, (from_time, to_time))
+        self.cnx.commit()
+    
+    def clear_readings_by_label(self, label):
+        print "Clearing readings by label"
+        cursor = self.cnx.cursor()
+        query = ("DELETE FROM readings WHERE label = %s")
+        cursor.execute(query, (label,))
         self.cnx.commit()
     
     def label_readings(self, label):
@@ -207,6 +236,17 @@ class ClientWorker(threading.Thread):
         cursor.close()
         self.cnx.commit()
         
+                
+    def rewind_readings_in_time(self, from_time, to_time):
+        cursor = self.cnx.cursor()
+        query = ("SELECT id, antenna, reader, epc, tid, user_data, rssi, time_millis FROM readings WHERE time_millis >= %s AND time_millis <= %s ")
+        cursor.execute(query, (from_time,to_time))
+        for (id, antenna, reader, epc, tid, user_data, rssi, time_millis) in cursor:
+            data_row = "{},{},{},{},{},{},{}\r\n".format(reader, antenna,  epc, time_millis, rssi, tid, user_data)
+            self.notify_reading(data_row)
+        cursor.close()
+        self.cnx.commit()
+        
     def rewind_readings_by_label(self, label):
         print "rewind by label"
         print label        
@@ -221,9 +261,12 @@ class ClientWorker(threading.Thread):
         
     def handle_rewind_readings(self, commands):
         if len(commands) > 1:
-            if commands[1] == "time":
+            if commands[1] == "from":
                 if len(commands) > 2:
                     self.rewind_readings_by_time(commands[2])
+            if commands[1] == "in":
+                if len(commands) > 3:
+                    self.rewind_readings_in_time(commands[2], commands[3])
             if commands[1] == "label":
                 if len(commands) > 2:
                     self.rewind_readings_by_label(commands[2])
@@ -247,21 +290,41 @@ class ClientWorker(threading.Thread):
         print "time set, closing connection"
     
     def handle_time_command(self, commands):
-        if commands[1] == "set":
-            print "set time"
-            if commands[2].isdigit():
-                command_line = 'date +%%s -s @%s' % commands[2]
-            else:
-                command_line = 'date --set=%s' % commands[2]
-            print command_line
-            os.system(command_line)
-            self.set_reader_time()
-            data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
-            self.notify_reading(data_row)
-        if commands[1] == "get":
-            print "get time"
-            data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
-            self.notify_reading(data_row)
+        if len(commands) > 1:
+            if commands[1] == "set":
+                if len(commands) > 2:
+                    print "set time"
+                    if commands[2].isdigit():
+                        command_line = 'date +%%s -s @%s' % commands[2]
+                    else:
+                        command_line = 'date --set=%s' % commands[2]
+                    print command_line
+                    os.system(command_line)
+                    self.set_reader_time()
+                    data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
+                    self.notify_reading(data_row)
+            if commands[1] == "get":
+                print "get time"
+                data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
+                self.notify_reading(data_row)
+            
+    def handle_clear_command(self, commands):
+        if len(commands) > 1:
+            if commands[1] == "before":
+                if len(commands) > 2:
+                    self.clear_readings_before_time(commands[2])
+            if commands[1] == "after":
+                if len(commands) > 2:
+                    self.clear_readings_after_time(commands[2])
+            if commands[1] == "in":
+                if len(commands) > 3:
+                    self.clear_readings_in_time(commands[2],commands[3])
+            if commands[1] == "label":
+                if len(commands) > 2:
+                    self.clear_readings_by_label(commands[2])
+        else:
+            self.clear_readings()
+        
 
     def handle_command(self, command):
         print "command :" + command + ":"
@@ -269,7 +332,7 @@ class ClientWorker(threading.Thread):
         if len(commands) > 0:
             if commands[0] == "clear":
 	            print "clear command"
-	            self.clear_readings()
+	            self.handle_clear_command(commands)
             if commands[0] == "rewind":
 	            print "rewind command"
 	            self.handle_rewind_readings(commands)
