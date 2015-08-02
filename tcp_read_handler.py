@@ -445,9 +445,12 @@ class SpeedwayReader(threading.Thread):
             else:
                 counter += 1
             if counter > 12:
-                self.clientsock.close()
-                self.socket_connected = 0
-                self.log_message("Watchdog closed connection. Triggering reconnect") #log on console
+                try:
+                    self.clientsock.close()
+                    self.socket_connected = 0
+                    self.log_message("Watchdog closed connection. Triggering reconnect") #log on console
+                except AttributeError:
+                    self.log_message("No client socket currently set")
 
     def blink_keepalive(self):
         if self.id == 1:
