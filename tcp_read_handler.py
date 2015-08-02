@@ -13,6 +13,7 @@ import socket
 import mysql.connector
 import binascii
 import datetime
+import paramiko
 from datetime import datetime
 from Queue import Queue
 import os
@@ -178,6 +179,14 @@ class ClientWorker(threading.Thread):
         cursor.execute(query)
         self.cnx.commit()
     
+    def label_readings(self, label):
+        print "Setting label"
+        print label
+        cursor = self.cnx.cursor()
+        query = ("UPDATE readings SET label = %s WHERE label is null")
+        cursor.execute(query, (label,))
+        self.cnx.commit()
+    
     def rewind_readings(self):
         cursor = self.cnx.cursor()
         query = ("SELECT id, antenna, reader, epc, tid, user_data, rssi, time_millis FROM readings")
@@ -188,17 +197,70 @@ class ClientWorker(threading.Thread):
         cursor.close()
         self.cnx.commit()
         
+    def rewind_readings_by_time(self, from_time):
+        cursor = self.cnx.cursor()
+        query = ("SELECT id, antenna, reader, epc, tid, user_data, rssi, time_millis FROM readings WHERE time_millis >= %s ")
+        cursor.execute(query, (from_time,))
+        for (id, antenna, reader, epc, tid, user_data, rssi, time_millis) in cursor:
+            data_row = "{},{},{},{},{},{},{}\r\n".format(reader, antenna,  epc, time_millis, rssi, tid, user_data)
+            self.notify_reading(data_row)
+        cursor.close()
+        self.cnx.commit()
+        
+    def rewind_readings_by_label(self, label):
+        print "rewind by label"
+        print label        
+        cursor = self.cnx.cursor()
+        query = ("SELECT id, antenna, reader, epc, tid, user_data, rssi, time_millis FROM readings WHERE label = %s")
+        cursor.execute(query, (label,))
+        for (id, antenna, reader, epc, tid, user_data, rssi, time_millis) in cursor:
+            data_row = "{},{},{},{},{},{},{}\r\n".format(reader, antenna,  epc, time_millis, rssi, tid, user_data)
+            self.notify_reading(data_row)
+        cursor.close()
+        self.cnx.commit()
+        
+    def handle_rewind_readings(self, commands):
+        if len(commands) > 1:
+            if commands[1] == "time":
+                if len(commands) > 2:
+                    self.rewind_readings_by_time(commands[2])
+            if commands[1] == "label":
+                if len(commands) > 2:
+                    self.rewind_readings_by_label(commands[2])
+        else:
+            self.rewind_readings()
+        
+    def handle_label_command(self, commands):
+        if len(commands) > 1:
+            self.label_readings(commands[1])
+            
+    def set_reader_time(self):
+        print "setting reader time"
+        ssh = paramiko.SSHClient()
+        ssh.load_system_host_keys()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect('192.168.2.200', username='root', 
+            password='impinj')
+        print "connected!"
+        stdin, stdout, stderr = ssh.exec_command("config system time " + strftime("%Y.%m.%d-%H:%M:%S", gmtime()))
+        ssh.close()
+        print "time set, closing connection"
+    
     def handle_time_command(self, commands):
         if commands[1] == "set":
             print "set time"
-            command_line = 'date %s' % commands[2]
+            if commands[2].isdigit():
+                command_line = 'date +%%s -s @%s' % commands[2]
+            else:
+                command_line = 'date --set=%s' % commands[2]
             print command_line
             os.system(command_line)
-            data_row = strftime("%Y-%m-%d %H:%M:%S\r\n", gmtime())
+            self.set_reader_time()
+            data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
             self.notify_reading(data_row)
         if commands[1] == "get":
             print "get time"
-            data_row = strftime("%Y-%m-%d %H:%M:%S\r\n", gmtime())
+            data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
             self.notify_reading(data_row)
 
     def handle_command(self, command):
@@ -210,10 +272,13 @@ class ClientWorker(threading.Thread):
 	            self.clear_readings()
             if commands[0] == "rewind":
 	            print "rewind command"
-	            self.rewind_readings()
+	            self.handle_rewind_readings(commands)
             if commands[0] == "time":
 	            print "time command"
 	            self.handle_time_command(commands)
+            if commands[0] == "label":
+	            print "label command"
+	            self.handle_label_command(commands)
     
     def command_listener(self):
         print 'Init command listener as threaded function'
@@ -377,9 +442,9 @@ class SpeedwayReader(threading.Thread):
                     tid = None
                     user_data = None
                     log_data = False
-		    blink = threading.Thread(target=self.blink_keepalive)
-        	    blink.daemon = True
-		    blink.start()	
+                    blink = threading.Thread(target=self.blink_keepalive)
+                    blink.daemon = True
+                    blink.start()	
                 elif len(fields) == 4:
                     reading.antenna = fields[0]
                     reading.epc = fields[1]
@@ -436,7 +501,10 @@ class SpeedwayReader(threading.Thread):
                         self.clientsock.close()
                         self.socket_connected = 0
                         self.log_message(self.addr, "- closed connection") #log on console
-                        GPIO.output(READER_0_LED,GPIO.HIGH)
+                        if self.id == 1:
+                            GPIO.output(READER_0_LED,GPIO.HIGH)
+                        if self.id == 2:
+                            GPIO.output(READER_1_LED,GPIO.HIGH)
                         break
                     data = data.splitlines()
                     print("notify reading rows "+str(len(data)))
