@@ -451,6 +451,10 @@ class SpeedwayReader(threading.Thread):
                     self.log_message("Watchdog closed connection. Triggering reconnect") #log on console
                 except AttributeError:
                     self.log_message("No client socket currently set")
+                    if self.id == 1:
+                        GPIO.output(READER_0_LED,GPIO.HIGH)
+                    if self.id == 2:
+                        GPIO.output(READER_1_LED,GPIO.HIGH)
 
     def blink_keepalive(self):
         if self.id == 1:
