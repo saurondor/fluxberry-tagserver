@@ -13,6 +13,7 @@ import socket
 import mysql.connector
 import binascii
 import datetime
+import paramiko
 from datetime import datetime
 from Queue import Queue
 import os
@@ -233,8 +234,17 @@ class ClientWorker(threading.Thread):
         if len(commands) > 1:
             self.label_readings(commands[1])
             
-    def set_reader_time(self)
+    def set_reader_time(self):
         print "setting reader time"
+        ssh = paramiko.SSHClient()
+        ssh.load_system_host_keys()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect('192.168.2.200', username='root', 
+            password='impinj')
+        print "connected!"
+        stdin, stdout, stderr = ssh.exec_command("config system time " + strftime("%Y.%m.%d-%H:%M:%S", gmtime()))
+        ssh.close()
+        print "time set, closing connection"
     
     def handle_time_command(self, commands):
         if commands[1] == "set":
@@ -245,6 +255,7 @@ class ClientWorker(threading.Thread):
                 command_line = 'date --set=%s' % commands[2]
             print command_line
             os.system(command_line)
+            self.set_reader_time()
             data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
             self.notify_reading(data_row)
         if commands[1] == "get":
