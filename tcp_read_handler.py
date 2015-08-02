@@ -292,16 +292,17 @@ class ClientWorker(threading.Thread):
     def handle_time_command(self, commands):
         if len(commands) > 1:
             if commands[1] == "set":
-                print "set time"
-                if commands[2].isdigit():
-                    command_line = 'date +%%s -s @%s' % commands[2]
-                else:
-                    command_line = 'date --set=%s' % commands[2]
-                print command_line
-                os.system(command_line)
-                self.set_reader_time()
-                data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
-                self.notify_reading(data_row)
+                if len(commands) > 2:
+                    print "set time"
+                    if commands[2].isdigit():
+                        command_line = 'date +%%s -s @%s' % commands[2]
+                    else:
+                        command_line = 'date --set=%s' % commands[2]
+                    print command_line
+                    os.system(command_line)
+                    self.set_reader_time()
+                    data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
+                    self.notify_reading(data_row)
             if commands[1] == "get":
                 print "get time"
                 data_row = "#," + strftime("%Y-%m-%dT%H:%M:%S%Z", gmtime()) + "," + str(time.time()) + "\r\n"
