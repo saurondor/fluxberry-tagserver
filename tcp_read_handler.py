@@ -22,7 +22,7 @@ BUFF = 1024
 READER_0_LED = 5
 READER_1_LED = 6
 WATCHDOG_LED = 26
-EPC_AS_HEX = True
+EPC_AS_HEX = False
 BUZZER_LED = 13
 TIEMPOMETA_LED = 19
 DATABASE = 'speedway'
@@ -537,12 +537,16 @@ class SpeedwayReader(threading.Thread):
 				elif len(fields) == 4:
 					print ">> data 4"
 					reading.antenna = fields[0]
-					reading.epc = int(fields[1], 16)
 					reading.time_millis = fields[2]
 					reading.rssi = fields[3]
 					reading.tid = None
 					reading.user_data = None
-					data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
+					if (EPC_AS_HEX):
+						reading.epc = fields[1]
+						data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + ",None,None"
+					else:
+						reading.epc = int(fields[1], 16)
+						data_row = reading.antenna + "," + str(reading.epc) + "," + reading.time_millis + "," + reading.rssi + ",None,None"
 					try:
 					    ms = float(reading.time_millis)//1000000.0
 					    reading.read_time = datetime.utcfromtimestamp(ms)
@@ -551,12 +555,16 @@ class SpeedwayReader(threading.Thread):
 				elif len(fields) == 5:
 					print ">> data 5"
 					reading.antenna = fields[0]
-					reading.epc = int(fields[1], 16)
 					reading.time_millis = fields[2]
 					reading.rssi = fields[3]
 					reading.tid = fields[4]
 					reading.user_data = None
-					data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
+					if (EPC_AS_HEX):
+						reading.epc = fields[1]
+						data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + ",None"
+					else:
+						reading.epc = int(fields[1], 16)
+						data_row = reading.antenna + "," + str(reading.epc) + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + ",None"
 					try:
 					    ms = float(reading.time_millis)//1000000.0
 					    reading.read_time = datetime.utcfromtimestamp(ms)
@@ -565,12 +573,16 @@ class SpeedwayReader(threading.Thread):
 				elif len(fields) == 6:
 					print ">> data 6"
 					reading.antenna = fields[0]
-					reading.epc = int(fields[1], 16)
 					reading.time_millis = fields[2]
 					reading.rssi = fields[3]
 					reading.tid = fields[4]
 					reading.user_data = fields[5]
-					data_row = reading.antenna + "," + str(reading.epc) + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
+					if (EPC_AS_HEX):
+						reading.epc = fields[1]
+						data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
+					else:
+						reading.epc = int(fields[1], 16)
+						data_row = reading.antenna + "," + str(reading.epc) + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
 					try:
 						ms = float(reading.time_millis)//1000000.0
 						reading.read_time = datetime.utcfromtimestamp(ms)
