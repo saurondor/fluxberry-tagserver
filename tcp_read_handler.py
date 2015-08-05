@@ -509,70 +509,76 @@ class SpeedwayReader(threading.Thread):
 	    self.watchdog_event.set()
 
 	def response(self,  data):
-	    self.watchdog_event.set()
-	    self.log_message('Reader data: ' + data)
-	    reader = "0"
-	    rows = data.splitlines()
-	    for row in rows:
-	        #print 'Row:'+row
-	        fields = row.split(',')
-	        #print len(fields)
-	        read_time = None
-	        log_data = True
-	        reading = TagReading()
-	        try:
-	            if len(fields) == 1:
-	                antenna = None
-	                epc = 'keepalive'
-	                time_millis = None
-	                rssi = None
-	                tid = None
-	                user_data = None
-	                log_data = False
-	                blink = threading.Thread(target=self.blink_keepalive)
-	                blink.daemon = True
-	                blink.start()	
-	            elif len(fields) == 4:
-	                reading.antenna = fields[0]
-	                reading.epc = int(fields[1], 16)
-	                reading.time_millis = fields[2]
-	                reading.rssi = fields[3]
-	                reading.tid = None
-	                reading.user_data = None
-	                try:
-	                    ms = float(reading.time_millis)//1000000.0
-	                    reading.read_time = datetime.utcfromtimestamp(ms)
-	                except Exception as error:
-	                    self.log_message(error)
-	            elif len(fields) == 5:
-	                reading.antenna = fields[0]
-	                reading.epc = int(fields[1], 16)
-	                reading.time_millis = fields[2]
-	                reading.rssi = fields[3]
-	                reading.tid = fields[4]
-	                reading.user_data = None
-	                try:
-	                    ms = float(reading.time_millis)//1000000.0
-	                    reading.read_time = datetime.utcfromtimestamp(ms)
-	                except Exception as error:
-	                    self.log_message(error)
-	            elif len(fields) == 6:
-	                reading.antenna = fields[0]
-	                reading.epc = int(fields[1], 16)
-	                reading.time_millis = fields[2]
-	                reading.rssi = fields[3]
-	                reading.tid = fields[4]
-	                reading.user_data = fields[5]
-	                try:
-	                    ms = float(reading.time_millis)//1000000.0
-	                    reading.read_time = datetime.utcfromtimestamp(ms)
-	                except Exception as error:
-	                    self.log_message(error)
-	            if log_data:
-	                self.readings.put(reading)
-	        except Exception as error:
-	            self.log_message(error)
-	            
+		self.watchdog_event.set()
+		self.log_message('Reader data: ' + data)
+		reader = "0"
+		rows = data.splitlines()
+		data_row = ""
+		for row in rows:
+		    #print 'Row:'+row
+		    fields = row.split(',')
+		    #print len(fields)
+		    read_time = None
+		    log_data = True
+		    reading = TagReading()
+		    try:
+		        if len(fields) == 1:
+		            antenna = None
+		            epc = 'keepalive'
+		            time_millis = None
+		            rssi = None
+		            tid = None
+		            user_data = None
+		            log_data = False
+		            data_row = "*"
+		            blink = threading.Thread(target=self.blink_keepalive)
+		            blink.daemon = True
+		            blink.start()	
+		        elif len(fields) == 4:
+		            reading.antenna = fields[0]
+		            reading.epc = int(fields[1], 16)
+		            reading.time_millis = fields[2]
+		            reading.rssi = fields[3]
+		            reading.tid = None
+		            reading.user_data = None
+		            data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
+		            try:
+		                ms = float(reading.time_millis)//1000000.0
+		                reading.read_time = datetime.utcfromtimestamp(ms)
+		            except Exception as error:
+		                self.log_message(error)
+		        elif len(fields) == 5:
+		            reading.antenna = fields[0]
+		            reading.epc = int(fields[1], 16)
+		            reading.time_millis = fields[2]
+		            reading.rssi = fields[3]
+		            reading.tid = fields[4]
+		            reading.user_data = None
+		            data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
+		            try:
+		                ms = float(reading.time_millis)//1000000.0
+		                reading.read_time = datetime.utcfromtimestamp(ms)
+		            except Exception as error:
+		                self.log_message(error)
+		        elif len(fields) == 6:
+		            reading.antenna = fields[0]
+		            reading.epc = int(fields[1], 16)
+		            reading.time_millis = fields[2]
+		            reading.rssi = fields[3]
+		            reading.tid = fields[4]
+		            reading.user_data = fields[5]
+		            data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
+		            try:
+		                ms = float(reading.time_millis)//1000000.0
+		                reading.read_time = datetime.utcfromtimestamp(ms)
+		            except Exception as error:
+		                self.log_message(error)
+		        if log_data:
+		            self.readings.put(reading)
+		    except Exception as error:
+		        self.log_message(error)
+		self.server.notify_reading(str(self.id) + ","+ data_row+"\r\n")
+        
 	# main worker loop
 	def run(self):
 	    keepalive_counter = 0
@@ -596,8 +602,8 @@ class SpeedwayReader(threading.Thread):
 	                print("notify reading rows "+str(len(data)))
 	                for row in data:
 	                    print("sending data row "+row)
-	                    self.server.notify_reading(str(self.id) + ","+ row+"\r\n")
-	                    repr(self.response(row))
+	                    #self.server.notify_reading(str(self.id) + ","+ row+"\r\n")
+	                    self.response(row)
 	            except Exception:
 	                data_timeout = 1
 	        if self.id == 1:
