@@ -18,6 +18,14 @@ from datetime import datetime
 from Queue import Queue
 import os
 
+
+EPC_OUTPUT_TYPE_DECIMAL = 'decimal'
+EPC_OUTPUT_TYPE_HEX = 'hex'
+FILTER_TYPE_ALL = 'all'
+FILTER_TYPE_FIRST = 'first'
+FILTER_TYPE_LAST = 'last'
+FILTER_TYPE_HIGHEST_READ = 'high_rssi'
+
 BUFF = 1024
 READER_0_LED = 5
 READER_1_LED = 6
@@ -33,18 +41,18 @@ DB_PASSWORD = 'speedway'
 
 
 class TagServer():
-    """ Main tag server application entry class.
-    """
-    # blinking function
-    def blink(self, pin):
-        GPIO.output(pin,GPIO.LOW)
-        time.sleep(0.02)
-        GPIO.output(pin,GPIO.HIGH)
-        time.sleep(0.01)
-        return
+	""" Main tag server application entry class.
+	"""
+	# blinking function
+	def blink(self, pin):
+		GPIO.output(pin,GPIO.LOW)
+		time.sleep(0.02)
+		GPIO.output(pin,GPIO.HIGH)
+		time.sleep(0.01)
+		return
 
 
-    def __init__(self):
+	def __init__(self):
 		pins = [5, 6, 13, 19, 26]
 		pin = 5
 		not_connected = True
@@ -57,7 +65,7 @@ class TagServer():
 			except Exception as error:
 				print(error)
 				time.sleep(5)
-	    # to use Raspberry Pi bcm pin numbers
+		# to use Raspberry Pi bcm pin numbers
 		print "Set GPIO mode BCM"
 		GPIO.setmode(GPIO.BCM)
 		print "GPIO mode BCM set!"
@@ -70,9 +78,17 @@ class TagServer():
 				self.blink(pin)
 		print "POST LED complete!"
 		print 'Starting client listener'
-		self.client_listener = ClientListener(10201, '0.0.0.0')
-		self.client_listener.daemon = True
-		self.client_listener.start()
+		print 'Loading settings'
+		cursor = self.cnx.cursor()
+		query = ("SELECT epc_output_type, buzzer, tcp_port, filter_type FROM settings")
+		cursor.execute(query)
+		for (epc_output_type, buzzer, tcp_port, filter_type) in cursor:
+			print 'Found settings row, starting client listener on port:' + str(tcp_port)
+			self.client_listener = ClientListener(tcp_port, '0.0.0.0')
+			self.client_listener.daemon = True
+			self.client_listener.start()
+		cursor.close()
+		
 		# start reader listeneres
 		cursor = self.cnx.cursor()
 		query = ("SELECT id, address, port, status FROM readers")
@@ -93,9 +109,9 @@ class TagServer():
 		cursor.close()
 		print "Speedway reader init completed"
 		print 'Initialized server process!'
-        
-    def notify_reading(self, reading):
-        self.client_listener.notify_reading(reading)
+
+	def notify_reading(self, reading):
+		self.client_listener.notify_reading(reading)
 
 class Reader():
 
