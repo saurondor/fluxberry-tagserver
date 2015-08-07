@@ -83,11 +83,17 @@ class TagServer():
 		query = ("SELECT epc_output_type, buzzer, tcp_port, filter_type FROM settings")
 		cursor.execute(query)
 		for (epc_output_type, buzzer, tcp_port, filter_type) in cursor:
-			print 'Found settings row, starting client listener on port:' + str(tcp_port)
-			self.client_listener = ClientListener(tcp_port, '0.0.0.0', epc_output_type, buzzer, filter_type)
-			self.client_listener.daemon = True
-			self.client_listener.start()
+			print 'Found settings row. Loading configuration...'
+			self.epc_output_type = epc_output_type
+			self.buzzer = buzzer
+			self.tcp_port = tcp_port
+			self.filter_type = filter_type
 		cursor.close()
+
+		print 'Starting client listener on port:' + str(self.tcp_port)
+		self.client_listener = ClientListener(self.tcp_port, '0.0.0.0', self.epc_output_type, self.buzzer, self.filter_type)
+		self.client_listener.daemon = True
+		self.client_listener.start()
 		
 		# start reader listeneres
 		cursor = self.cnx.cursor()
@@ -129,7 +135,6 @@ class ClientListener(threading.Thread):
 		self.port = port
 		self.epc_output_type = epc_output_type
 		self.buzzer_on = buzzer
-		print 'init buzzer ' + str(self.buzzer)
 		self.filter_type = filter_type
 		self.hostname = hostname
 		self.workers = []
