@@ -30,7 +30,6 @@ BUFF = 1024
 READER_0_LED = 5
 READER_1_LED = 6
 WATCHDOG_LED = 26
-EPC_AS_HEX = False
 BUZZER_LED = 13
 TIEMPOMETA_LED = 19
 DATABASE = 'speedway'
@@ -103,7 +102,7 @@ class TagServer():
 		for (id, address, port, status) in cursor:
 			print("{} - {}, {} reader status {}".format(id, address,  port,  status))
 			if status == 1:
-				reader0 = SpeedwayReader(id, address, port, self)
+				reader0 = SpeedwayReader(id, address, port, self.epc_output_type, self)
 				reader0.daemon = True
 				try:
 					reader0.connect_to_reader()
@@ -412,11 +411,12 @@ class SpeedwayReader(threading.Thread):
 	def __del__(self):
 		self.cnx.close()
 
-	def __init__(self, id, addr, port, server):
+	def __init__(self, id, addr, port, epc_output_type, server):
 		threading.Thread.__init__(self)
 		print "Starting speedway reader..."
 		self.connected = 1
 		self.socket_connected = 0
+		self.epc_output_type = epc_output_type
 		self.id = id
 		self.watchdog_event = threading.Event()
 		self.cnx = mysql.connector.connect(host=DB_HOSTNAME,database=DATABASE,user=DB_USER,password=DB_PASSWORD)
@@ -566,7 +566,7 @@ class SpeedwayReader(threading.Thread):
 					reading.rssi = fields[3]
 					reading.tid = None
 					reading.user_data = None
-					if (EPC_AS_HEX):
+					if (self.epc_output_type == EPC_OUTPUT_TYPE_HEX):
 						reading.epc = fields[1]
 						data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + ",None,None"
 					else:
@@ -584,7 +584,7 @@ class SpeedwayReader(threading.Thread):
 					reading.rssi = fields[3]
 					reading.tid = fields[4]
 					reading.user_data = None
-					if (EPC_AS_HEX):
+					if (self.epc_output_type == EPC_OUTPUT_TYPE_HEX):
 						reading.epc = fields[1]
 						data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + ",None"
 					else:
@@ -602,7 +602,7 @@ class SpeedwayReader(threading.Thread):
 					reading.rssi = fields[3]
 					reading.tid = fields[4]
 					reading.user_data = fields[5]
-					if (EPC_AS_HEX):
+					if (self.epc_output_type == EPC_OUTPUT_TYPE_HEX):
 						reading.epc = fields[1]
 						data_row = reading.antenna + "," + reading.epc + "," + reading.time_millis + "," + reading.rssi + "," + reading.tid + "," + reading.user_data
 					else:
