@@ -145,7 +145,9 @@ class ClientListener(threading.Thread):
 				except Exception as error:
 					print error
 		if len(self.workers) == 0:
-		    GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+			GPIO.output(WATCHDOG_LED,GPIO.HIGH)
+		else:
+			GPIO.output(WATCHDOG_LED,GPIO.LOW)
 
 	def run(self):
 		print 'Running listener ' + self.hostname + ' ' + str(self.port)
@@ -366,20 +368,19 @@ class ClientWorker(threading.Thread):
 				print 'Conection closed'
 				self.socket.close()
 				self.socket_connected = False
-				GPIO.output(WATCHDOG_LED,GPIO.HIGH)
 				break
 			else:
 				print command
 
 	def run(self):
-		print 'Starting client worker ' + str(self.__hash__)
+		print 'Starting client worker'
 		# get all readings greater than current ID
 		while 1:
 			try:
 				data = self.readings.get(True, 60)
 				self.socket.send(data)
 			except:
-				print 'Client worker ' + str(self.__hash__) + " running"
+				print 'Client worker running'
 
 class SpeedwayReader(threading.Thread):
 	""" Handles data connections to a Speedway reader
