@@ -102,7 +102,7 @@ class TagServer():
 		for (id, address, port, status) in cursor:
 			print("{} - {}, {} reader status {}".format(id, address,  port,  status))
 			if status == 1:
-				reader0 = SpeedwayReader(id, address, port, self.epc_output_type, self)
+				reader0 = SpeedwayReader(id, address, port, self.epc_output_type, self.filter_type, self)
 				reader0.daemon = True
 				try:
 					reader0.connect_to_reader()
@@ -411,12 +411,13 @@ class SpeedwayReader(threading.Thread):
 	def __del__(self):
 		self.cnx.close()
 
-	def __init__(self, id, addr, port, epc_output_type, server):
+	def __init__(self, id, addr, port, epc_output_type, filter_type, server):
 		threading.Thread.__init__(self)
 		print "Starting speedway reader..."
 		self.connected = 1
 		self.socket_connected = 0
 		self.epc_output_type = epc_output_type
+		self.filter_type = filter_type
 		self.id = id
 		self.watchdog_event = threading.Event()
 		self.cnx = mysql.connector.connect(host=DB_HOSTNAME,database=DATABASE,user=DB_USER,password=DB_PASSWORD)
@@ -613,7 +614,7 @@ class SpeedwayReader(threading.Thread):
 						reading.read_time = datetime.utcfromtimestamp(ms)
 					except Exception as error:
 						self.log_message(error)
-				print "*** Notify Reading... " +  data_row	
+				print "*** Notify Reading [" +  data_row	+ "] filter type is >" + self.filter_type
 				self.server.notify_reading(str(self.id) + ","+ data_row+"\r\n")
 				if log_data:
 					self.readings.put(reading)
