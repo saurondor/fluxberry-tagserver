@@ -128,7 +128,7 @@ class ClientListener(threading.Thread):
 		print 'Initializing client listener'
 		self.port = port
 		self.epc_output_type = epc_output_type
-		self.buzzer = buzzer
+		self.buzzer_on = buzzer
 		print 'init buzzer ' + str(self.buzzer)
 		self.filter_type = filter_type
 		self.hostname = hostname
@@ -145,12 +145,13 @@ class ClientListener(threading.Thread):
 		buzzer_event.clear()
 
 	def notify_reading(self,  reading):
-		if len(reading) > 5:
-			if not self.buzzer_event.isSet():
-				self.buzzer_event.set()
-				t1 = threading.Thread(target=self.buzzer,  args=(self.buzzer_event, ))
-				t1.daemon = True
-				t1.start()
+		if self.buzzer_on == 1:
+			if len(reading) > 5:
+				if not self.buzzer_event.isSet():
+					self.buzzer_event.set()
+					t1 = threading.Thread(target=self.buzzer,  args=(self.buzzer_event, ))
+					t1.daemon = True
+					t1.start()
 
 		for worker in self.workers:
 			if (worker.is_connected()):
