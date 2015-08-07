@@ -198,6 +198,7 @@ class ClientWorker(threading.Thread):
 		query = ("DELETE FROM readings")
 		cursor.execute(query)
 		self.cnx.commit()
+		print "Successfully cleared all readings"
 	
 	def clear_readings_before_time(self, to_time):
 		print "Clearing before time"
