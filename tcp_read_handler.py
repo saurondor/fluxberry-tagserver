@@ -84,7 +84,7 @@ class TagServer():
 		cursor.execute(query)
 		for (epc_output_type, buzzer, tcp_port, filter_type) in cursor:
 			print 'Found settings row, starting client listener on port:' + str(tcp_port)
-			self.client_listener = ClientListener(tcp_port, '0.0.0.0')
+			self.client_listener = ClientListener(tcp_port, '0.0.0.0', epc_output_type, buzzer, filter_type)
 			self.client_listener.daemon = True
 			self.client_listener.start()
 		cursor.close()
@@ -123,10 +123,14 @@ class ClientListener(threading.Thread):
 	""" Listens to PC connections and starts a client worker when a PC connects
 	"""
 
-	def __init__(self,  port,  hostname):
+	def __init__(self,  port,  hostname, epc_output_type, buzzer, filter_type):
 		threading.Thread.__init__(self)
 		print 'Initializing client listener'
 		self.port = port
+		self.epc_output_type = epc_output_type
+		self.buzzer = buzzer
+		print 'init buzzer ' + str(self.buzzer)
+		self.filter_type = filter_type
 		self.hostname = hostname
 		self.workers = []
 		self.buzzer_event = threading.Event()
@@ -141,15 +145,12 @@ class ClientListener(threading.Thread):
 		buzzer_event.clear()
 
 	def notify_reading(self,  reading):
-		print "**** SET BUZZER"
 		if len(reading) > 5:
 			if not self.buzzer_event.isSet():
 				self.buzzer_event.set()
-				print 'Initializing buzzer thread'
 				t1 = threading.Thread(target=self.buzzer,  args=(self.buzzer_event, ))
 				t1.daemon = True
 				t1.start()
-				print 'Successfully initialized buzzer thread'
 
 		for worker in self.workers:
 			if (worker.is_connected()):
