@@ -467,10 +467,10 @@ class SpeedwayReader(threading.Thread):
 					self.log_message("Watchdog closed connection. Triggering reconnect") #log on console
 				except AttributeError:
 					self.log_message("No client socket currently set")
-					if self.id == 1:
-						GPIO.output(READER_0_LED,GPIO.HIGH)
-					if self.id == 2:
-						GPIO.output(READER_1_LED,GPIO.HIGH)
+				if self.id == 1:
+					GPIO.output(READER_0_LED,GPIO.HIGH)
+				if self.id == 2:
+					GPIO.output(READER_1_LED,GPIO.HIGH)
 
 	# blinks keep alive led
 	def blink_keepalive(self):
@@ -622,56 +622,56 @@ class SpeedwayReader(threading.Thread):
 						self.response(row)
 				except Exception:
 					data_timeout = 1
-		if self.id == 1:
-			GPIO.output(READER_0_LED,GPIO.HIGH)
-		if self.id == 2:
-			GPIO.output(READER_1_LED,GPIO.HIGH)
-		#self.event.clear()
-		self.log_message('Waiting to reconnect. Retry:' + str(retry_counter))
-		if retry_counter < 20:
-			time.sleep(0.1)     
-		elif retry_counter < 100:
-			time.sleep(10)
 			if self.id == 1:
-				GPIO.output(READER_0_LED,GPIO.LOW)
-				time.sleep(0.3)
-				GPIO.output(READER_0_LED,GPIO.HIGH)
-				time.sleep(0.3)
-				GPIO.output(READER_0_LED,GPIO.LOW)
-				time.sleep(0.3)
 				GPIO.output(READER_0_LED,GPIO.HIGH)
 			if self.id == 2:
-				GPIO.output(READER_1_LED,GPIO.LOW)
-				time.sleep(0.3)
 				GPIO.output(READER_1_LED,GPIO.HIGH)
-				time.sleep(0.3)
-				GPIO.output(READER_1_LED,GPIO.LOW)
-				time.sleep(0.3)
-				GPIO.output(READER_1_LED,GPIO.HIGH)
-		else:
-			time.sleep(60)
-			if self.id == 1:
-				GPIO.output(READER_0_LED,GPIO.LOW)
-				time.sleep(0.3)
-				GPIO.output(READER_0_LED,GPIO.HIGH)
-				time.sleep(0.3)
-				GPIO.output(READER_0_LED,GPIO.LOW)
-				time.sleep(0.3)
-				GPIO.output(READER_0_LED,GPIO.HIGH)
-			if self.id == 2:
-				GPIO.output(READER_1_LED,GPIO.LOW)
-				time.sleep(0.3)
-				GPIO.output(READER_1_LED,GPIO.HIGH)
-				time.sleep(0.3)
-				GPIO.output(READER_1_LED,GPIO.LOW)
-				time.sleep(0.3)
-				GPIO.output(READER_1_LED,GPIO.HIGH)
-		try:
-			self.connect_to_reader()
-			retry_counter = 1
-		except Exception:
-			retry_counter = retry_counter + 1
-			self.log_message('Unable to connect')
+			#self.event.clear()
+			self.log_message('Waiting to reconnect. Retry:' + str(retry_counter))
+			if retry_counter < 20:
+				time.sleep(0.2)     
+			elif retry_counter < 100:
+				time.sleep(10)
+				if self.id == 1:
+					GPIO.output(READER_0_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_0_LED,GPIO.HIGH)
+					time.sleep(0.3)
+					GPIO.output(READER_0_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_0_LED,GPIO.HIGH)
+				if self.id == 2:
+					GPIO.output(READER_1_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_1_LED,GPIO.HIGH)
+					time.sleep(0.3)
+					GPIO.output(READER_1_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_1_LED,GPIO.HIGH)
+			else:
+				time.sleep(60)
+				if self.id == 1:
+					GPIO.output(READER_0_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_0_LED,GPIO.HIGH)
+					time.sleep(0.3)
+					GPIO.output(READER_0_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_0_LED,GPIO.HIGH)
+				if self.id == 2:
+					GPIO.output(READER_1_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_1_LED,GPIO.HIGH)
+					time.sleep(0.3)
+					GPIO.output(READER_1_LED,GPIO.LOW)
+					time.sleep(0.3)
+					GPIO.output(READER_1_LED,GPIO.HIGH)
+			try:
+				self.connect_to_reader()
+				retry_counter = 1
+			except Exception:
+				retry_counter = retry_counter + 1
+				self.log_message('Unable to connect')
 
 class TagReading:
 	def __init__(self):
